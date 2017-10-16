@@ -4,12 +4,11 @@ use strict;
 use warnings;
 use Getopt::Long;
 use File::Basename;
-use Logger::Logger;
 use Math::Round;
 use Cwd 'abs_path';
 
 my $VERSION = '1.0' ;
-my $lastmodif = '2017-09-29' ;
+my $lastmodif = '2017-10-16' ;
 
 my $input_file= '';
 my $map_file='';
@@ -22,29 +21,23 @@ my $category = '';
 my $depth=0;
 
 GetOptions(
-          "i|input:s"      => \$input_file,
+					"i|input:s"      => \$input_file,
 					"m|map:s"        => \$map_file,
 					"c=s"            => \$category,
 					"d=i"            => \$depth,
 					"freq"           => \$freq,
-          "o|output=s"     => \$output,
-          "h|help"         => \$help,
-          "v|verbosity=i"  => \$verbosity,
+					"o|output=s"     => \$output,
+					"h|help"         => \$help,
 ) ;
-
-
-if($verbosity > 1){
-  Logger::Logger->changeMode( $verbosity );
-}
 
 
 &main;
 
 
 sub main {
-  my $self={};
-  bless $self;
-  _set_options($self);
+	my $self={};
+	bless $self;
+	_set_options($self);
 	$self->_read_map_file();
 	$self->_read_biom_tab_file();
 	$self->{_taxonIDs} = ["k__","p__","c__","o__","f__","g__", "s__"];
@@ -63,50 +56,48 @@ sub _print {
 	my ($self,$tree,$taxo,$depth)=@_;
 	my %keysList;
 	$depth++;
-  foreach my $k (keys %{$tree}){
+	foreach my $k (keys %{$tree}){
 		if(!defined($self->{_sample_hash}->{$k})){
 			$keysList{$k} = 1;
 		}
 	}
-	# if($depth < $self->{_max_depth}){
-		foreach my $c (keys %keysList){
-			my $newHash;
-
-			$taxo->[$depth] = $self->{_taxonIDs}->[$depth] . $c;
-			if($#{$taxo} > 1){
-				for( my $i = $depth+1 ; $i <= $#{$taxo} ; $i ++){
-					delete $taxo->[$i];
-				}
+	foreach my $c (keys %keysList){
+		my $newHash;
+		$taxo->[$depth] = $self->{_taxonIDs}->[$depth] . $c;
+		if($#{$taxo} > 1){
+			for( my $i = $depth+1 ; $i <= $#{$taxo} ; $i ++){
+				delete $taxo->[$i];
 			}
+		}
 
-			foreach my $k (keys %{$tree->{$c}}){
-				if(defined($self->{_sample_hash}->{$k})){
+		foreach my $k (keys %{$tree->{$c}}){
+			if(defined($self->{_sample_hash}->{$k})){
+			}
+			else{
+				$newHash->{$k} = $tree->{$c}->{$k};
+			}
+		}
+		$self->{_old_depth} = $depth;
+		if($depth <= $self->{_max_depth}){
+			print join('|',@{$taxo});
+			for(my $i=0;$i<=$#{$self->{_sample_list}};$i++){
+				if($self->{_freq}){
+					print "\t" . nearest(0.00001, $tree->{$c}->{$self->{_sample_list}->[$i]} / $self->{_total_per_sample}->{$self->{_sample_list}->[$i]});
 				}
 				else{
-					$newHash->{$k} = $tree->{$c}->{$k};
+					print "\t" . $tree->{$c}->{$self->{_sample_list}->[$i]};
 				}
 			}
-			$self->{_old_depth} = $depth;
-			if($depth <= $self->{_max_depth}){
-				print join('|',@{$taxo});
-				for(my $i=0;$i<=$#{$self->{_sample_list}};$i++){
-					if($self->{_freq}){
-						print "\t" . nearest(0.00001, $tree->{$c}->{$self->{_sample_list}->[$i]} / $self->{_total_per_sample}->{$self->{_sample_list}->[$i]});
-					}
-					else{
-						print "\t" . $tree->{$c}->{$self->{_sample_list}->[$i]};
-					}
-				}
-				print "\n";
-			}
-			_print($self,$newHash,$taxo,$depth);
+			print "\n";
 		}
+		_print($self,$newHash,$taxo,$depth);
+	}
 }
 
 
 sub _read_map_file {
 	my ($self)=@_;
-	open(CSV,$self->{_map_file}) || $logger->logdie('Cannot open file ' . $self->{_map_file});
+	open(CSV,$self->{_map_file}) || die('Cannot open file ' . $self->{_map_file});
 	my $hash;
 	my $header_line = <CSV>;
 	chomp $header_line;
@@ -123,7 +114,7 @@ sub _read_map_file {
 
 sub _read_biom_tab_file {
 	my ($self)=@_;
-	open(CSV,$self->{_input_file}) || $logger->logdie('Cannot open file ' . $self->{_input_file});
+	open(CSV,$self->{_input_file}) || die('Cannot open file ' . $self->{_input_file});
 	my $tree ={};
 	while(<CSV>){
 		chomp;
@@ -159,15 +150,14 @@ sub _read_biom_tab_file {
 
 
 sub _set_options {
-  my ($self)=@_;
-
-  if($input_file ne ''){
+	my ($self)=@_;
+	if($input_file ne ''){
 		$self->{_input_file} = abs_path($input_file);
-  }
-  else{
-    $logger->error('You must provide at least one csv file.');
-    &help;
-  }
+	}
+	else{
+		print STDERR 'You must provide at least one tsv file.' . "\n";
+		&help;
+	}
 	if($map_file ne ''){
 		$self->{_map_file} = $map_file;
 	}
@@ -184,6 +174,9 @@ sub _set_options {
 		$self->{_max_depth} = $depth;
 	}
 	$self->{_freq} = $freq;
+	if($help){
+		&help
+	}
 }
 
 
@@ -201,14 +194,14 @@ print STDERR <<EOF ;
 
 USAGE: perl $prog -i otu-table-w-taxo.tsv -m mapping-file.tsv
 
-       ### OPTIONS ###
-       -i|input        <BLAST CSV>=<GROUP FILE>  Blast CSV extended file and CSV group file corresponding to blast (optional)
-       -m|map          <QIIME MAP FILE> TSV file.
-       -o|output       <DIRECTORY>  Output directory.
-			 -c              Map category to print.
-			 -d              Depth.
-			 -freq           Compute per sample frequencies.
-       -help|h         Print this help and exit.
+				### OPTIONS ###
+				-i|input        <BLAST CSV>=<GROUP FILE>  Blast CSV extended file and CSV group file corresponding to blast (optional)
+				-m|map          <QIIME MAP FILE> TSV file.
+				-o|output       <DIRECTORY>  Output directory.
+				-c              Map category to print.
+				-d              Depth.
+				-freq           Compute per sample frequencies.
+				-help|h         Print this help and exit.
 EOF
 exit(1) ;
 }
