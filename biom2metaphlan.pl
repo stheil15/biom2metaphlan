@@ -213,17 +213,17 @@ print STDERR <<EOF ;
 # AUTHOR:     Sebastien THEIL
 # VERSION:    $VERSION
 # LAST MODIF: $lastmodif
-# PURPOSE:    This script is used to parse csv file containing tax_id field and creates Krona charts.
+# PURPOSE:    This script generates Metaphlan compatible files from Biom TSV format.
 #
 
 USAGE: perl $prog -i otu-table-w-taxo.tsv -m mapping-file.tsv
 
 				### OPTIONS ###
-				-i|input        <BLAST CSV> Blast CSV extended file and CSV group file corresponding to blast (optional)
+				-i|input        <OTU TABLE> OTU table in Biom TSV format, with taxonomy.
 				-m|map          <QIIME MAP FILE> TSV file.
-				-o|output       <DIRECTORY>  Output directory.
+				-o|output       <FILE>  Output file name.
 				-c              Map category to print.
-				-d              Depth.
+				-d              Taxonomy depth. [int]
 				-freq           Compute per sample frequencies.
 				-help|h         Print this help and exit.
 EOF
