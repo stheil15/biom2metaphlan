@@ -6,6 +6,7 @@ use Getopt::Long;
 use File::Basename;
 use Math::Round;
 use Cwd 'abs_path';
+use Data::Dumper;
 
 my $VERSION = '1.0' ;
 my $lastmodif = '2017-10-16' ;
@@ -21,13 +22,13 @@ my $category = '';
 my $depth=0;
 
 GetOptions(
-					"i|input:s"      => \$input_file,
-					"m|map:s"        => \$map_file,
-					"c=s"            => \$category,
-					"d=i"            => \$depth,
-					"freq"           => \$freq,
-					"o|output=s"     => \$output,
-					"h|help"         => \$help,
+			"i|input:s"      => \$input_file,
+			"m|map:s"        => \$map_file,
+			"c=s"            => \$category,
+			"d=i"            => \$depth,
+			"freq"           => \$freq,
+			"o|output=s"     => \$output,
+			"h|help"         => \$help,
 ) ;
 
 
@@ -38,13 +39,16 @@ sub main {
 	my $self={};
 	bless $self;
 	_set_options($self);
+	# $self->{_selected_category} = ['J3_actrade','J3_surgras','J3_rien'];
 	$self->_read_map_file();
 	$self->_read_biom_tab_file();
 	$self->{_taxonIDs} = ["k__","p__","c__","o__","f__","g__", "s__"];
 	my @taxo=();
-	print 'sample_id' . "\t" . join("\t",@{$self->{_sample_list}}) . "\n";
-	print $self->{_category};
-	foreach my $sample (@{$self->{_sample_list}}){
+	print 'sample_id' . "\t" . join("\t",keys(%{$self->{_map_hash}})) . "\n";
+	foreach my $sample (keys(%{$self->{_map_hash}})){
+		if(! defined( $self->{_map_hash}->{$sample} ) ){
+			print STDERR $sample . "\n";
+		}
 		print "\t" . $self->{_map_hash}->{$sample}->{$self->{_category}};
 	}
 	print "\n";
@@ -53,9 +57,11 @@ sub main {
 
 
 sub _print {
+
 	my ($self,$tree,$taxo,$depth)=@_;
 	my %keysList;
 	$depth++;
+	# print Dumper $tree;
 	foreach my $k (keys %{$tree}){
 		if(!defined($self->{_sample_hash}->{$k})){
 			$keysList{$k} = 1;
@@ -106,11 +112,23 @@ sub _read_map_file {
 		chomp;
 		my @line = split("\t",$_);
 		for(my $i=1;$i<=$#headers;$i++){
-			$hash->{$line[0]}->{$headers[$i]} = $line[$i];
+			# if(defined($self->{_selected_category})){
+				if($headers[$i] eq $self->{_category}){
+					# foreach my $s_cat (@{$self->{_selected_category}}){
+						# if($line[$i] eq $s_cat){
+							$hash->{$line[0]}->{$headers[$i]} = $line[$i];
+						# }
+					# }
+				}
+			# }
+			else{
+				$hash->{$line[0]}->{$headers[$i]} = $line[$i];
+			}
 		}
 	}
 	$self->{_map_hash} = $hash;
 }
+
 
 sub _read_biom_tab_file {
 	my ($self)=@_;
@@ -124,21 +142,27 @@ sub _read_biom_tab_file {
 		if(/^#OTU ID/){
 			my @headers = split(/\t/,$_);
 			for(my $i=1;$i<$#headers;$i++){
-				push(@{$self->{_sample_list}},$headers[$i]);
-				$self->{_sample_hash}->{$headers[$i]}=1;
+				if(defined($self->{_map_hash}->{$headers[$i]})){
+					push(@{$self->{_sample_list}},$headers[$i]);
+					$self->{_sample_hash}->{$headers[$i]}=$i;
+				}
 			}
 		}
 		else{
 			my $parent = $tree;
 			my @data_line = split(/\t/,$_);
 			my @taxo = split(';',$data_line[$#data_line]);
-			for(my $i=1;$i<$#data_line;$i++){
-				$self->{_total_per_sample}->{ $self->{_sample_list}->[$i-1] } += $data_line[$i];
+			foreach my $s (keys(%{$self->{_sample_hash}})){
+				if(defined($self->{_map_hash}->{$s})){
+					$self->{_total_per_sample}->{ $s } += $data_line[$self->{_sample_hash}->{$s}];
+				}
 			}
 			for(my $j=0;$j<=$#taxo;$j++){
 				$taxo[$j] =~ s/^\s//;
-				for(my $i=1;$i<$#data_line;$i++){
-					$parent->{$taxo[$j]}->{$self->{_sample_list}->[$i-1]} += $data_line[$i];
+				foreach my $s (keys(%{$self->{_sample_hash}})){
+					if(defined($self->{_map_hash}->{$s})){
+						$parent->{$taxo[$j]}->{ $s } += $data_line[$self->{_sample_hash}->{$s}];
+					}
 				}
 				$parent = $parent->{$taxo[$j]};
 			}
@@ -195,7 +219,7 @@ print STDERR <<EOF ;
 USAGE: perl $prog -i otu-table-w-taxo.tsv -m mapping-file.tsv
 
 				### OPTIONS ###
-				-i|input        <BLAST CSV>=<GROUP FILE>  Blast CSV extended file and CSV group file corresponding to blast (optional)
+				-i|input        <BLAST CSV> Blast CSV extended file and CSV group file corresponding to blast (optional)
 				-m|map          <QIIME MAP FILE> TSV file.
 				-o|output       <DIRECTORY>  Output directory.
 				-c              Map category to print.

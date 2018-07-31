@@ -1,5 +1,6 @@
 # biom2metaphlan
 
+Parse a TSV file format to Metaphlan format to run Lefse and/or Hclust scripts.
 
 ## Perl libraries
 
