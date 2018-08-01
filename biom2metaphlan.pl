@@ -38,11 +38,11 @@ GetOptions(
 sub main {
 	my $self={};
 	bless $self;
+	$self->{_taxonIDs} = ["k__","p__","c__","o__","f__","g__", "s__"];
 	_set_options($self);
 	# $self->{_selected_category} = ['J3_actrade','J3_surgras','J3_rien'];
 	$self->_read_map_file();
 	$self->_read_biom_tab_file();
-	$self->{_taxonIDs} = ["k__","p__","c__","o__","f__","g__", "s__"];
 	my @taxo=();
 	print 'sample_id' . "\t" . join("\t",keys(%{$self->{_map_hash}})) . "\n";
 	foreach my $sample (keys(%{$self->{_map_hash}})){
@@ -69,7 +69,12 @@ sub _print {
 	}
 	foreach my $c (keys %keysList){
 		my $newHash;
-		$taxo->[$depth] = $self->{_taxonIDs}->[$depth] . $c;
+		if($self->{_is_taxonIDs} == 0){
+			$taxo->[$depth] = $c;
+		}
+		else{
+			$taxo->[$depth] = $self->{_taxonIDs}->[$depth] . $c;
+		}
 		if($#{$taxo} > 1){
 			for( my $i = $depth+1 ; $i <= $#{$taxo} ; $i ++){
 				delete $taxo->[$i];
@@ -152,6 +157,15 @@ sub _read_biom_tab_file {
 			my $parent = $tree;
 			my @data_line = split(/\t/,$_);
 			my @taxo = split(';',$data_line[$#data_line]);
+			if(!defined($self->{_is_taxonIDs})){
+				if($taxo[0] =~ /^k__/){
+					$self->{_is_taxonIDs} = 1;
+				}
+				else{
+					$self->{_is_taxonIDs} = 0;
+				}
+			}
+			@taxo = $self->_treat_missing_rank(@taxo);
 			foreach my $s (keys(%{$self->{_sample_hash}})){
 				if(defined($self->{_map_hash}->{$s})){
 					$self->{_total_per_sample}->{ $s } += $data_line[$self->{_sample_hash}->{$s}];
@@ -170,6 +184,39 @@ sub _read_biom_tab_file {
 	}
 	close CSV;
 	$self->{_tree} = $tree;
+}
+
+sub _treat_missing_rank {
+	my ($self,@taxo)=@_;
+	my @new;
+	my $last=0;
+	for(my $i=0;$i<=$#taxo;$i++){
+		my $tmp;
+		if($self->{_is_taxonIDs} == 1){
+			$tmp = $taxo[$i] ;
+			$tmp =~ s/$self->{_taxonIDs}->[$i]//;
+		}
+		if($tmp eq ''){
+			$last = $i;
+			last;
+		}
+	}
+	my $last_rank = $taxo[$last-1];
+	$last_rank =~ s/$self->{_taxonIDs}->[$last-1]//;
+	for(my $i=0;$i<=$#taxo;$i++){
+		my $tmp;
+		$tmp = $taxo[$i] ;
+		if($self->{_is_taxonIDs} == 1){
+			$tmp =~ s/$self->{_taxonIDs}->[$i]//;
+		}
+		if($i < $last){
+			push(@new,$taxo[$i]);
+		}
+		else{
+			push(@new,$self->{_taxonIDs}->[$i] . $last_rank);
+		}
+	}
+	return @new;
 }
 
 
