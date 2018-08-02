@@ -164,7 +164,6 @@ sub _read_biom_tab_file {
 				else{
 					$self->{_is_taxonIDs} = 0;
 				}
-				print $self->{_is_taxonIDs} . "\n";
 			}
 			@taxo = $self->_treat_missing_rank(@taxo);
 			foreach my $s (keys(%{$self->{_sample_hash}})){
