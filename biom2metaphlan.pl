@@ -69,7 +69,7 @@ sub _print {
 	}
 	foreach my $c (keys %keysList){
 		my $newHash;
-		if($self->{_is_taxonIDs} == 0){
+		if($self->{_is_taxonIDs} == 1){
 			$taxo->[$depth] = $c;
 		}
 		else{
@@ -164,6 +164,7 @@ sub _read_biom_tab_file {
 				else{
 					$self->{_is_taxonIDs} = 0;
 				}
+				print $self->{_is_taxonIDs} . "\n";
 			}
 			@taxo = $self->_treat_missing_rank(@taxo);
 			foreach my $s (keys(%{$self->{_sample_hash}})){
@@ -189,11 +190,11 @@ sub _read_biom_tab_file {
 sub _treat_missing_rank {
 	my ($self,@taxo)=@_;
 	my @new;
-	my $last=0;
+	my $last=-1;
 	for(my $i=0;$i<=$#taxo;$i++){
 		my $tmp;
+		$tmp = $taxo[$i] ;
 		if($self->{_is_taxonIDs} == 1){
-			$tmp = $taxo[$i] ;
 			$tmp =~ s/$self->{_taxonIDs}->[$i]//;
 		}
 		if($tmp eq ''){
@@ -201,22 +202,32 @@ sub _treat_missing_rank {
 			last;
 		}
 	}
-	my $last_rank = $taxo[$last-1];
-	$last_rank =~ s/$self->{_taxonIDs}->[$last-1]//;
-	for(my $i=0;$i<=$#taxo;$i++){
-		my $tmp;
-		$tmp = $taxo[$i] ;
-		if($self->{_is_taxonIDs} == 1){
-			$tmp =~ s/$self->{_taxonIDs}->[$i]//;
+	if($last >= 0){
+		my $last_rank = $taxo[$last-1];
+		$last_rank =~ s/$self->{_taxonIDs}->[$last-1]//;
+		for(my $i=0;$i<=$#taxo;$i++){
+			my $tmp;
+			$tmp = $taxo[$i] ;
+			if($self->{_is_taxonIDs} == 1){
+				$tmp =~ s/$self->{_taxonIDs}->[$i]//;
+			}
+			if($i < $last){
+				push(@new,$taxo[$i]);
+			}
+			else{
+				if($self->{_is_taxonIDs} == 1){
+					push(@new,$last_rank);
+				}
+				else{
+					push(@new,$self->{_taxonIDs}->[$i] . $last_rank);
+				}
+			}
 		}
-		if($i < $last){
-			push(@new,$taxo[$i]);
-		}
-		else{
-			push(@new,$self->{_taxonIDs}->[$i] . $last_rank);
-		}
+		return @new;
 	}
-	return @new;
+	else{
+		return @taxo;
+	}
 }
 
 
